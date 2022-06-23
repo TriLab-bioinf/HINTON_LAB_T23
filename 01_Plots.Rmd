@@ -1,0 +1,279 @@
+---
+title: "DE plots"
+output: html_notebook
+author: Hernan Lorenzi
+---
+
+# Load libraries and functions
+```{r}
+library(tidyverse)
+library(ggrepel)
+library(cowplot)
+library(scales)
+
+source(file = "aux_functions.R")
+```
+
+# Load data
+```{r}
+july19 <- readxl::read_xls(path = "./data/July 2019 WT-dS17-Mg 08122019 copy.xls", sheet = "WT-Mg vs. delS17-Mg_norm_EDGE", col_names = TRUE, col_types = c(rep("text",1),
+                               rep("numeric",17),
+                               rep("text",1),
+                               rep("numeric",7),
+                               rep("text",1),
+                               rep("numeric",7),
+                               rep("text",1),
+                               rep("numeric",9),
+                               rep("text",1),
+                               rep("numeric",7),
+                               rep("text",1),
+                               rep("numeric",7),
+                               rep("text",1),
+                               rep("numeric",4)
+                               )
+                            )
+
+july18 <- readxl::read_xlsx(path = "./data/July 2018 DelS17_WTnoMg_DEG07 copy.xlsx", sheet = "delS17-Mg07 vs. WT-Mg07_nor...", col_names = TRUE, col_types = c(rep("text",1),
+                               rep("numeric",17),
+                               rep("text",1),
+                               rep("numeric",7),
+                               rep("text",1),
+                               rep("numeric",9),
+                               rep("text",1),
+                               rep("numeric",7),
+                               rep("text",1),
+                               rep("numeric",4)
+                               )
+                            )
+
+march19 <- readxl::read_xlsx(path = "./data/March 2019 DelS17_WTnoMg_DEG03 copy March 2019.xlsx", sheet = "WT-Mg03 vs. DS17-Mg03_norm_...", col_names = TRUE, col_types = c(rep("text",1),
+                               rep("numeric",17),
+                               rep("text",1),
+                               rep("numeric",7),
+                               rep("text",1),
+                               rep("numeric",9),
+                               rep("text",1),
+                               rep("numeric",7),
+                               rep("text",1),
+                               rep("numeric",4)
+                               )
+                            )
+
+genes_of_interest <- read_csv(file = "data/genes_of_interest.txt", col_names = FALSE)
+```
+
+# Add mean expression data column and Log2FC to each table
+````{r}
+
+# add log2FC and overall normalized counts
+july19 <- mutate(.data = july19, 
+                        Log2FC = log(july19$`delS17-Mg - Normalized means`/july19$`WT-Mg - Normalized means`,2))
+
+july19 <- mutate(.data = july19, .after = "Log2FC",
+                        Normalized_mean_all = (c(july19$`WT-Mg - Normalized means` + july19$`delS17-Mg - Normalized means`) / 2)
+                 )
+
+july19$Fold_diff <- july19$`EDGE test: WT-Mg vs delS17-Mg, tagwise dispersions - Fold change`
+
+# Add highlight column
+july19$highlight <- "gray"
+july19$highlight[july19$`Feature ID` %in% as.vector(genes_of_interest$X1)] <- "red"
+
+# Set -Inf and +Inf log2FC values to -10 and +10
+july19$Log2FC[july19$Log2FC > 15] <- 15
+july19$Log2FC[july19$Log2FC < -15] <- -15
+
+july18 <- mutate(.data = july18,
+                  Log2FC = log(july18$`delS17-Mg07 - Normalized means`/july18$`WT-Mg07 - Normalized means` ,2)
+                 )
+
+july18 <- mutate(.data = july18, .after = "Log2FC",
+                        Normalized_mean_all = (c(july18$`WT-Mg07 - Normalized means`+ july18$`delS17-Mg07 - Normalized means`) / 2)
+                 )
+
+july18$Fold_diff <- july18$`EDGE test: WT-Mg07 vs delS17-Mg07, tagwise dispersions - Fold change`
+  
+# Add highlight column
+july18$highlight <- "gray"
+july18$highlight[july18$`Feature ID` %in% as.vector(genes_of_interest$X1)] <- "red"
+
+
+
+
+march19 <- mutate(.data = march19, .after = "DS17-Mg03 - Normalized means",
+                        Log2FC = log(march19$`DS17-Mg03 - Normalized means`/march19$`WT-Mg03 - Normalized means`,2))
+
+march19 <- mutate(.data = march19, .after = "Log2FC",
+                        Normalized_mean_all = (c(march19$`WT-Mg03 - Normalized means` + march19$`DS17-Mg03 - Normalized means`) / 2)
+                  )
+ 
+march19$Fold_diff <- march19$`EDGE test: WT-Mg03 vs DS17-Mg03, tagwise dispersions - Fold change`
+
+# Add highlight column
+march19$highlight <- "gray"
+march19$highlight[march19$`Feature ID` %in% as.vector(genes_of_interest$X1)] <- "red"
+
+```
+
+# Plot test 1
+```{r}
+dir.create(path = "./Plots", showWarnings = FALSE)
+
+# Sort july19 so red dots are plotted last and are visible
+july19 <- arrange(july19, july19$highlight)
+
+p <- ggplot(data = july19, aes(x = Normalized_mean_all, y = Fold_diff)) +
+  geom_point( colour = july19$highlight, alpha = 0.5, size = ifelse(july19$`Feature ID` %in% genes_of_interest$X1,2,1)) + theme_bw() + ylim(max(c(-50, min(july19$`EDGE test: WT-Mg vs delS17-Mg, tagwise dispersions - Fold change`))),min(c(50, max(july19$`EDGE test: WT-Mg vs delS17-Mg, tagwise dispersions - Fold change`)))) +
+   scale_x_log10() + scale_y_continuous(trans="symlog", labels = label_number()) +
+  labs(title = "July 2019") +
+  xlab("Mean normalized expression (Log10)") +
+  ylab("Fold difference (WT-Mg vs delS17-Mg)") +
+  geom_hline(yintercept = 0, size = 0.1)
+  
+p
+
+genes_to_label <- ifelse(july19$`Feature ID` %in% genes_of_interest$X1,as.character(july19$`Feature ID`),NA)
+
+# Adding labels to genes of interest
+p1 <- p + geom_text_repel(aes(label = genes_to_label),
+                  box.padding   = 0.4, 
+                  point.padding = 0.3,
+                  segment.color = 'darkgray',
+                  na.rm = TRUE,
+                  size = 3,
+                  min.segment.length = 0.02,
+                  direction = "both",
+                  segment.curvature = -0.1,
+                  segment.ncp = 3,
+                  segment.angle = 20,
+                  max.iter = 1e6,
+                  max.overlaps = 30)
+
+p1
+
+ggsave2(filename = "july19.pdf", plot = p1, path = "./Plots", width = 8, height = 11)
+
+
+```
+
+
+# Plot test 2
+```{r}
+dir.create(path = "./Plots", showWarnings = FALSE)
+
+# Sort july19 so red dots are plotted last and are visible
+july18 <- arrange(july18, july18$highlight)
+
+p2 <- ggplot(data = july18, aes(x = Normalized_mean_all, y = Fold_diff)) +
+  geom_point( colour = july18$highlight, alpha = 0.5, size = ifelse(july18$`Feature ID` %in% genes_of_interest$X1,2,1)) + theme_bw() + ylim(-10,10000) +
+  scale_x_log10() + scale_y_continuous(trans="symlog", labels = label_number()) +
+  labs(title = "July 2018") +
+  xlab("Mean normalized expression (Log10)") +
+  ylab("Fold difference (WT-Mg07 vs delS17-Mg07)") +
+  geom_hline(yintercept = 0, size = 0.1)
+  
+p2
+
+genes_to_label <- ifelse(july18$`Feature ID` %in% genes_of_interest$X1,as.character(july18$`Feature ID`),NA)
+
+# Adding labels to genes of interest
+p3 <- p2 + geom_text_repel(aes(label = genes_to_label),
+                  box.padding   = 0.4, 
+                  point.padding = 0.3,
+                  segment.color = 'darkgray',
+                  na.rm = TRUE,
+                  size = 3,
+                  min.segment.length = 0.02,
+                  direction = "both",
+                  segment.curvature = -0.1,
+                  segment.ncp = 3,
+                  segment.angle = 20,
+                  max.iter = 1e6,
+                  max.overlaps = 30)
+
+p3
+
+ggsave2(filename = "july18.pdf", plot = p3, path = "./Plots", width = 8, height = 11)
+
+
+```
+# Plot test 3
+```{r}
+dir.create(path = "./Plots", showWarnings = FALSE)
+
+# Sort july19 so red dots are plotted last and are visible
+march19 <- arrange(march19, march19$highlight)
+
+p4 <- ggplot(data = march19, aes(x = Normalized_mean_all, y = Fold_diff)) +
+  geom_point( colour = march19$highlight, alpha = 0.5, size = ifelse(march19$`Feature ID` %in% genes_of_interest$X1,2,1)) + theme_bw() + ylim(-10,10000) +
+  scale_x_log10() + scale_y_continuous(trans="symlog", labels = label_number()) +
+  labs(title = "March 2019") +
+  xlab("Mean normalized expression (Log10)") +
+  ylab("Fold difference (WT-Mg03 vs DS17-Mg03)") +
+  geom_hline(yintercept = 0, size = 0.1)
+  
+p4
+
+genes_to_label <- ifelse(march19$`Feature ID` %in% genes_of_interest$X1,as.character(march19$`Feature ID`),NA)
+# Adding labels to genes of interest
+p5 <- p4 + geom_text_repel(aes(label = genes_to_label),
+                  box.padding   = 0.4, 
+                  point.padding = 0.3,
+                  segment.color = 'darkgray',
+                  na.rm = TRUE,
+                  size = 3,
+                  min.segment.length = 0.02,
+                  direction = "both",
+                  segment.curvature = -0.1,
+                  segment.ncp = 3,
+                  segment.angle = 20,
+                  max.iter = 1e6,
+                  max.overlaps = 30)
+
+p5
+
+ggsave2(filename = "march19.pdf", plot = p5, path = "./Plots", width = 8, height = 11)
+
+
+```
+
+# Plot test 4
+```{r}
+dir.create(path = "./Plots", showWarnings = FALSE)
+
+# Sort july19 so red dots are plotted last and are visible
+march19 <- arrange(march19, march19$highlight)
+
+p5 <- ggplot(data = march19, aes(x = Normalized_mean_all, y = Fold_diff)) +
+  geom_point( colour = march19$highlight, alpha = 0.5, size = ifelse(march19$`Feature ID` %in% genes_of_interest$X1,2,1)) + theme_bw() + ylim(-10,10) +
+  scale_x_log10() +
+  labs(title = "March 2019") +
+  xlab("Mean normalized expression (Log10)") +
+  ylab("Fold difference (WT-Mg03 vs DS17-Mg03)") +
+  geom_hline(yintercept = 0, size = 0.1)
+  
+p5
+
+genes_to_label <- ifelse(march19$`Feature ID` %in% genes_of_interest$X1,as.character(march19$`Feature ID`),NA)
+# Adding labels to genes of interest
+p6 <- p5 + geom_text_repel(aes(label = genes_to_label),
+                  box.padding   = 0.4, 
+                  point.padding = 0.3,
+                  segment.color = 'darkgray',
+                  na.rm = TRUE,
+                  size = 3,
+                  min.segment.length = 0.02,
+                  direction = "both",
+                  segment.curvature = -0.1,
+                  segment.ncp = 3,
+                  segment.angle = 20,
+                  max.iter = 1e6,
+                  max.overlaps = 30)
+
+p6
+
+ggsave2(filename = "march19_regular_scale.pdf", plot = p6, path = "./Plots", width = 8, height = 11)
+
+
+```
+
