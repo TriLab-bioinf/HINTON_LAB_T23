@@ -1,7 +1,9 @@
 ---
 title: "DE plots"
-output: html_notebook
-author: Hernan Lorenzi
+author: "Hernan Lorenzi"
+output:
+  html_document:
+    df_print: paged
 ---
 
 # Load libraries and functions
@@ -64,7 +66,7 @@ genes_of_interest <- read_csv(file = "data/genes_of_interest.txt", col_names = F
 ```
 
 # Add mean expression data column and Log2FC to each table
-````{r}
+```{r}
 
 # add log2FC and overall normalized counts
 july19 <- mutate(.data = july19, 
