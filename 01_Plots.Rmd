@@ -10,6 +10,7 @@ library(tidyverse)
 library(ggrepel)
 library(cowplot)
 library(scales)
+library(ggbreak)
 
 source(file = "aux_functions.R")
 ```
@@ -124,15 +125,14 @@ july19 <- arrange(july19, july19$highlight)
 
 p <- ggplot(data = july19, aes(x = Normalized_mean_all, y = Fold_diff)) +
   geom_point( colour = july19$highlight, alpha = 0.5, size = ifelse(july19$`Feature ID` %in% genes_of_interest$X1,2,1)) + theme_bw() + ylim(max(c(-50, min(july19$`EDGE test: WT-Mg vs delS17-Mg, tagwise dispersions - Fold change`))),min(c(50, max(july19$`EDGE test: WT-Mg vs delS17-Mg, tagwise dispersions - Fold change`)))) +
-   scale_x_log10() + scale_y_continuous(trans="symlog", labels = label_number()) +
+   scale_x_log10() + scale_y_continuous(trans="symlog", labels = label_number(accuracy = 1)) +
   labs(title = "July 2019") +
   xlab("Mean normalized expression (Log10)") +
-  ylab("Fold difference (WT-Mg vs delS17-Mg)") +
-  geom_hline(yintercept = 0, size = 0.1)
-  
-p
+  ylab("Fold difference (WT-Mg vs delS17-Mg)") 
 
 genes_to_label <- ifelse(july19$`Feature ID` %in% genes_of_interest$X1,as.character(july19$`Feature ID`),NA)
+
+p <- p + scale_y_break(c(-1, 1))
 
 # Adding labels to genes of interest
 p1 <- p + geom_text_repel(aes(label = genes_to_label),
@@ -147,9 +147,14 @@ p1 <- p + geom_text_repel(aes(label = genes_to_label),
                   segment.ncp = 3,
                   segment.angle = 20,
                   max.iter = 1e6,
-                  max.overlaps = 30)
+                  max.overlaps = 30,
+                  ylim = c(1,1000))
 
-p1
+p1 <- p1 + geom_hline(yintercept = 2, size = 0.5, colour = "red", linetype = "longdash") +
+           geom_hline(yintercept = -2, size = 0.5, colour = "red", linetype = "longdash")
+
+p1 
+
 
 ggsave2(filename = "july19.pdf", plot = p1, path = "./Plots", width = 8, height = 11)
 
@@ -166,18 +171,18 @@ july18 <- arrange(july18, july18$highlight)
 
 p2 <- ggplot(data = july18, aes(x = Normalized_mean_all, y = Fold_diff)) +
   geom_point( colour = july18$highlight, alpha = 0.5, size = ifelse(july18$`Feature ID` %in% genes_of_interest$X1,2,1)) + theme_bw() + ylim(-10,10000) +
-  scale_x_log10() + scale_y_continuous(trans="symlog", labels = label_number()) +
+  scale_x_log10() + scale_y_continuous(trans="symlog", labels = label_number(accuracy = 1)) +
   labs(title = "July 2018") +
   xlab("Mean normalized expression (Log10)") +
-  ylab("Fold difference (WT-Mg07 vs delS17-Mg07)") +
-  geom_hline(yintercept = 0, size = 0.1)
+  ylab("Fold difference (WT-Mg07 vs delS17-Mg07)") 
   
-p2
+p3 <- p2 + scale_y_break(c(-1, 1))
+
 
 genes_to_label <- ifelse(july18$`Feature ID` %in% genes_of_interest$X1,as.character(july18$`Feature ID`),NA)
 
 # Adding labels to genes of interest
-p3 <- p2 + geom_text_repel(aes(label = genes_to_label),
+p3 <- p3 + geom_text_repel(aes(label = genes_to_label),
                   box.padding   = 0.4, 
                   point.padding = 0.3,
                   segment.color = 'darkgray',
@@ -189,7 +194,12 @@ p3 <- p2 + geom_text_repel(aes(label = genes_to_label),
                   segment.ncp = 3,
                   segment.angle = 20,
                   max.iter = 1e6,
-                  max.overlaps = 30)
+                  max.overlaps = 30,
+                  ylim = c(1,1000))
+
+p3 <- p3 + geom_hline(yintercept = 2, size = 0.5, colour = "red", linetype = "longdash") +
+           geom_hline(yintercept = -2, size = 0.5, colour = "red", linetype = "longdash")
+
 
 p3
 
@@ -206,17 +216,18 @@ march19 <- arrange(march19, march19$highlight)
 
 p4 <- ggplot(data = march19, aes(x = Normalized_mean_all, y = Fold_diff)) +
   geom_point( colour = march19$highlight, alpha = 0.5, size = ifelse(march19$`Feature ID` %in% genes_of_interest$X1,2,1)) + theme_bw() + ylim(-10,10000) +
-  scale_x_log10() + scale_y_continuous(trans="symlog", labels = label_number()) +
+  scale_x_log10() + scale_y_continuous(trans="symlog", labels = label_number(accuracy = 1)) +
   labs(title = "March 2019") +
   xlab("Mean normalized expression (Log10)") +
   ylab("Fold difference (WT-Mg03 vs DS17-Mg03)") +
   geom_hline(yintercept = 0, size = 0.1)
   
-p4
+p5 <- p4 + scale_y_break(c(-1, 1))
 
 genes_to_label <- ifelse(march19$`Feature ID` %in% genes_of_interest$X1,as.character(march19$`Feature ID`),NA)
+
 # Adding labels to genes of interest
-p5 <- p4 + geom_text_repel(aes(label = genes_to_label),
+p5 <- p5 + geom_text_repel(aes(label = genes_to_label),
                   box.padding   = 0.4, 
                   point.padding = 0.3,
                   segment.color = 'darkgray',
@@ -228,7 +239,11 @@ p5 <- p4 + geom_text_repel(aes(label = genes_to_label),
                   segment.ncp = 3,
                   segment.angle = 20,
                   max.iter = 1e6,
-                  max.overlaps = 30)
+                  max.overlaps = 30,
+                  ylim = c(1,1000))
+
+p5 <- p5 + geom_hline(yintercept = 2, size = 0.5, colour = "red", linetype = "longdash") +
+           geom_hline(yintercept = -2, size = 0.5, colour = "red", linetype = "longdash")
 
 p5
 
